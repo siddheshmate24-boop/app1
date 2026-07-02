@@ -3,43 +3,13 @@ import yfinance as yf
 import plotly.graph_objects as go
 
 st.set_page_config(
-    page_title="Global Stock Market Dashboard",
+    page_title="Stock Dashboard",
     page_icon="📈",
     layout="wide"
 )
 
-# -------------------------
-# Custom Styling
-# -------------------------
-st.markdown("""
-<style>
-.main {
-    background-color: #f8fafc;
-}
-.big-font {
-    font-size:40px !important;
-    font-weight:bold;
-    color:#1e3a8a;
-}
-.stock-card {
-    padding:20px;
-    border-radius:15px;
-    background-color:white;
-    box-shadow:0px 2px 10px rgba(0,0,0,0.1);
-}
-</style>
-""", unsafe_allow_html=True)
+st.title("📈 Global Stock Market Dashboard")
 
-st.markdown(
-    '<p class="big-font">📈 Global Stock Market Dashboard</p>',
-    unsafe_allow_html=True
-)
-
-st.write("Track real-time stock prices using Yahoo Finance")
-
-# -------------------------
-# Suggested Stocks
-# -------------------------
 popular_stocks = {
     "Apple": "AAPL",
     "Microsoft": "MSFT",
@@ -53,105 +23,86 @@ popular_stocks = {
     "Infosys": "INFY.NS"
 }
 
-st.sidebar.title("📌 Suggested Stocks")
-
-for company, ticker in popular_stocks.items():
-    st.sidebar.write(f"• {company} ({ticker})")
-
-ticker = st.sidebar.text_input(
-    "Enter Stock Symbol",
-    value="AAPL"
+selected = st.sidebar.selectbox(
+    "Select Stock",
+    list(popular_stocks.keys())
 )
 
+ticker = popular_stocks[selected]
+
 period = st.sidebar.selectbox(
-    "Select Time Period",
+    "Select Period",
     ["1d", "5d", "1mo", "6mo", "1y", "5y", "max"]
 )
 
-# -------------------------
-# Fetch Data
-# -------------------------
 try:
-    stock = yf.Ticker(ticker)
 
-    info = stock.info
-
-    current_price = info.get(
-        "currentPrice",
-        info.get("regularMarketPrice", "N/A")
+    data = yf.download(
+        ticker,
+        period=period,
+        progress=False,
+        auto_adjust=True
     )
 
-    company_name = info.get(
-        "longName",
-        ticker
+    if data.empty:
+        st.error("No stock data found.")
+        st.stop()
+
+    current_price = round(
+        float(data["Close"].iloc[-1]),
+        2
     )
 
-    st.markdown(
-        f"""
-        <div class="stock-card">
-        <h2>{company_name}</h2>
-        <h3>Current Price: ${current_price}</h3>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.metric(
+        "Current Price",
+        f"${current_price}"
     )
 
-    data = stock.history(period=period)
+    fig = go.Figure()
 
-    if not data.empty:
-
-        fig = go.Figure()
-
-        fig.add_trace(
-            go.Scatter(
-                x=data.index,
-                y=data["Close"],
-                mode="lines",
-                name="Closing Price"
-            )
+    fig.add_trace(
+        go.Scatter(
+            x=data.index,
+            y=data["Close"],
+            mode="lines",
+            name="Close Price"
         )
+    )
 
-        fig.update_layout(
-            title=f"{ticker} Stock Price",
-            xaxis_title="Date",
-            yaxis_title="Price",
-            template="plotly_white",
-            height=600
-        )
+    fig.update_layout(
+        title=f"{ticker} Stock Price",
+        xaxis_title="Date",
+        yaxis_title="Price",
+        height=600
+    )
 
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
 
-        col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
 
-        col1.metric(
-            "Open",
-            round(data["Open"].iloc[-1], 2)
-        )
+    col1.metric(
+        "Open",
+        round(float(data["Open"].iloc[-1]), 2)
+    )
 
-        col2.metric(
-            "High",
-            round(data["High"].iloc[-1], 2)
-        )
+    col2.metric(
+        "High",
+        round(float(data["High"].iloc[-1]), 2)
+    )
 
-        col3.metric(
-            "Low",
-            round(data["Low"].iloc[-1], 2)
-        )
+    col3.metric(
+        "Low",
+        round(float(data["Low"].iloc[-1]), 2)
+    )
 
-        st.subheader("Company Summary")
+    st.subheader("Recent Data")
 
-        summary = info.get(
-            "longBusinessSummary",
-            "No company description available."
-        )
-
-        st.write(summary)
-
-    else:
-        st.warning("No data available.")
+    st.dataframe(
+        data.tail(10)
+    )
 
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"Application Error: {str(e)}")
