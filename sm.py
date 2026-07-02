@@ -2,15 +2,19 @@ import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
 
+# Page Configuration
 st.set_page_config(
-    page_title="Stock Dashboard",
+    page_title="Global Stock Dashboard",
     page_icon="📈",
     layout="wide"
 )
 
+# Title
 st.title("📈 Global Stock Market Dashboard")
+st.markdown("Track stock prices using Yahoo Finance")
 
-popular_stocks = {
+# Stock Suggestions
+stocks = {
     "Apple": "AAPL",
     "Microsoft": "MSFT",
     "NVIDIA": "NVDA",
@@ -23,41 +27,42 @@ popular_stocks = {
     "Infosys": "INFY.NS"
 }
 
-selected = st.sidebar.selectbox(
-    "Select Stock",
-    list(popular_stocks.keys())
+# Sidebar
+st.sidebar.header("Stock Selection")
+
+selected_stock = st.sidebar.selectbox(
+    "Choose a Stock",
+    list(stocks.keys())
 )
 
-ticker = popular_stocks[selected]
+ticker = stocks[selected_stock]
 
 period = st.sidebar.selectbox(
-    "Select Period",
-    ["1d", "5d", "1mo", "6mo", "1y", "5y", "max"]
+    "Select Time Period",
+    ["1d", "5d", "1mo", "3mo", "6mo", "1y", "5y", "max"]
 )
 
+# Download Data
 try:
-
     data = yf.download(
         ticker,
         period=period,
-        progress=False,
-        auto_adjust=True
+        auto_adjust=True,
+        progress=False
     )
 
     if data.empty:
-        st.error("No stock data found.")
+        st.warning("No stock data available.")
         st.stop()
 
-    current_price = round(
-        float(data["Close"].iloc[-1]),
-        2
-    )
+    current_price = round(float(data["Close"].iloc[-1]), 2)
 
     st.metric(
-        "Current Price",
-        f"${current_price}"
+        label="Current Price",
+        value=f"${current_price}"
     )
 
+    # Chart
     fig = go.Figure()
 
     fig.add_trace(
@@ -70,10 +75,11 @@ try:
     )
 
     fig.update_layout(
-        title=f"{ticker} Stock Price",
+        title=f"{ticker} Closing Price",
         xaxis_title="Date",
         yaxis_title="Price",
-        height=600
+        template="plotly_white",
+        height=550
     )
 
     st.plotly_chart(
@@ -81,6 +87,7 @@ try:
         use_container_width=True
     )
 
+    # Metrics
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
@@ -98,11 +105,8 @@ try:
         round(float(data["Low"].iloc[-1]), 2)
     )
 
-    st.subheader("Recent Data")
-
-    st.dataframe(
-        data.tail(10)
-    )
+    st.subheader("Latest Stock Data")
+    st.dataframe(data.tail(10))
 
 except Exception as e:
-    st.error(f"Application Error: {str(e)}")
+    st.error(f"Error: {e}")
