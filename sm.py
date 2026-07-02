@@ -2,18 +2,24 @@ import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
 
+# -----------------------------
 # Page Configuration
+# -----------------------------
 st.set_page_config(
     page_title="Global Stock Dashboard",
     page_icon="📈",
     layout="wide"
 )
 
+# -----------------------------
 # Title
+# -----------------------------
 st.title("📈 Global Stock Market Dashboard")
 st.markdown("Track stock prices using Yahoo Finance")
 
+# -----------------------------
 # Stock Suggestions
+# -----------------------------
 stocks = {
     "Apple": "AAPL",
     "Microsoft": "MSFT",
@@ -27,7 +33,9 @@ stocks = {
     "Infosys": "INFY.NS"
 }
 
+# -----------------------------
 # Sidebar
+# -----------------------------
 st.sidebar.header("Stock Selection")
 
 selected_stock = st.sidebar.selectbox(
@@ -42,7 +50,9 @@ period = st.sidebar.selectbox(
     ["1d", "5d", "1mo", "3mo", "6mo", "1y", "5y", "max"]
 )
 
+# -----------------------------
 # Download Data
+# -----------------------------
 try:
     data = yf.download(
         ticker,
@@ -55,14 +65,27 @@ try:
         st.warning("No stock data available.")
         st.stop()
 
-    current_price = round(float(data["Close"].iloc[-1]), 2)
+    # Handle MultiIndex columns
+    if hasattr(data.columns, "levels"):
+        data.columns = data.columns.get_level_values(0)
 
+    # Latest values
+    current_price = round(data["Close"].to_numpy()[-1], 2)
+    open_price = round(data["Open"].to_numpy()[-1], 2)
+    high_price = round(data["High"].to_numpy()[-1], 2)
+    low_price = round(data["Low"].to_numpy()[-1], 2)
+
+    # -----------------------------
+    # Current Price Card
+    # -----------------------------
     st.metric(
-        label="Current Price",
+        label=f"{ticker} Current Price",
         value=f"${current_price}"
     )
 
-    # Chart
+    # -----------------------------
+    # Stock Chart
+    # -----------------------------
     fig = go.Figure()
 
     fig.add_trace(
@@ -70,16 +93,16 @@ try:
             x=data.index,
             y=data["Close"],
             mode="lines",
-            name="Close Price"
+            name="Closing Price"
         )
     )
 
     fig.update_layout(
-        title=f"{ticker} Closing Price",
+        title=f"{ticker} Stock Price",
         xaxis_title="Date",
         yaxis_title="Price",
         template="plotly_white",
-        height=550
+        height=600
     )
 
     st.plotly_chart(
@@ -87,26 +110,23 @@ try:
         use_container_width=True
     )
 
+    # -----------------------------
     # Metrics
+    # -----------------------------
     col1, col2, col3 = st.columns(3)
 
-    col1.metric(
-        "Open",
-        round(float(data["Open"].iloc[-1]), 2)
-    )
+    col1.metric("Open", open_price)
+    col2.metric("High", high_price)
+    col3.metric("Low", low_price)
 
-    col2.metric(
-        "High",
-        round(float(data["High"].iloc[-1]), 2)
-    )
-
-    col3.metric(
-        "Low",
-        round(float(data["Low"].iloc[-1]), 2)
-    )
-
+    # -----------------------------
+    # Historical Data
+    # -----------------------------
     st.subheader("Latest Stock Data")
-    st.dataframe(data.tail(10))
+    st.dataframe(
+        data.tail(10),
+        use_container_width=True
+    )
 
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"Error: {str(e)}")
